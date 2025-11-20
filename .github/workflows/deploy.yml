@@ -29,13 +29,19 @@ jobs:
           chmod +x ./main
           docker rm pi-build
 
+      # --- Add Pi to known_hosts (MUST be BEFORE ssh/scp) ---
+      - name: Add Pi to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H 192.168.3.190 >> ~/.ssh/known_hosts
+
       # --- Upload executable using SCP ---
       - name: Upload binary to Raspberry Pi
         uses: appleboy/scp-action@v0.1.7
         with:
           host: 192.168.3.190
           username: bramtimo
-          key: ${{ secrets.PI_PRIVATE_KEY }}
+          password: ${{ secrets.PI_PASSWORD }}
           source: "main"
           target: "/home/bramtimo/main"
 
@@ -45,7 +51,7 @@ jobs:
         with:
           host: 192.168.3.190
           username: bramtimo
-          key: ${{ secrets.PI_PRIVATE_KEY }}
+          password: ${{ secrets.PI_PASSWORD }}
           script: |
             tmux kill-session -t myapp || true
             chmod +x /home/bramtimo/main
