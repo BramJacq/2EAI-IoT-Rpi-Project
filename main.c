@@ -5,6 +5,7 @@
 
 int main(void)
 {
+    //use gpio26
     static const unsigned int LED_GPIO_PIN = 26; 
     gpioInitialise();
 
