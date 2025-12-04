@@ -56,9 +56,14 @@ jobs:
         run: |
           $sshDir = "$env:USERPROFILE\.ssh"
           if (!(Test-Path $sshDir)) { New-Item -ItemType Directory -Path $sshDir }
-          ssh-keyscan -H $env:PI_HOST >> "$sshDir\known_hosts"
+
+          # Force supported KEX and host key algorithms
+          ssh-keyscan -oKexAlgorithms=+diffie-hellman-group14-sha1 \
+                      -oHostKeyAlgorithms=+ssh-rsa \
+                      -H $env:PI_HOST >> "$sshDir\known_hosts"
         env:
           PI_HOST: ${{ secrets.PI_HOST }}
+
 
 
       # 6️⃣ Upload binary to Raspberry Pi (Gebruik nieuwe secrets-namen)
