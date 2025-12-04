@@ -40,10 +40,10 @@ jobs:
             "
 
       # 5️⃣ Add Raspberry Pi to known_hosts
-      - name: Add Pi to known_hosts
+      - name: Add Raspberry Pi to known_hosts
         run: |
-          mkdir -p ~/.ssh
-          ssh-keyscan -H ${{ secrets.PI_HOST }} >> ~/.ssh/known_hosts
+        mkdir -p ~/.ssh
+        ssh-keyscan -H ${{ secrets.PI_HOST }} >> ~/.ssh/known_hosts
 
       # 6️⃣ Upload binary to Raspberry Pi  (OLD SSH)
       - name: Upload to Raspberry Pi
