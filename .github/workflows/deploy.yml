@@ -15,7 +15,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2️⃣ Set up QEMU + Buildx
+      # 2️⃣ Set up QEMU + Docker Buildx
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
         
@@ -39,7 +39,7 @@ jobs:
               echo 'Compilation successful, executable is main'
             "
 
-      # 5️⃣ Ensure .ssh directory
+      # 5️⃣ Ensure SSH directory exists
       - name: Ensure SSH directory
         shell: powershell
         run: |
@@ -47,8 +47,8 @@ jobs:
           if (-Not (Test-Path $sshDir)) { New-Item -ItemType Directory -Path $sshDir | Out-Null }
           Write-Host ".ssh directory ready at $sshDir"
 
-      # 6️⃣ Write private key from GitHub secret
-      - name: Write private key
+      # 6️⃣ Write SSH private key from secret
+      - name: Write SSH private key
         shell: powershell
         run: |
           $sshDir = Join-Path $env:USERPROFILE ".ssh"
@@ -60,7 +60,7 @@ jobs:
         env:
           PI_PRIVATE_KEY: ${{ secrets.PI_PRIVATE_KEY }}
 
-      # 7️⃣ Upload binary using SSH key
+      # 7️⃣ Upload binary to Raspberry Pi
       - name: Upload binary to Raspberry Pi
         shell: powershell
         run: |
