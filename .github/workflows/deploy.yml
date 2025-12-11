@@ -41,39 +41,51 @@ jobs:
               echo 'Compilation successful, executable is main'
             "
 
-      # 5️⃣ Add Raspberry Pi to known_hosts
-      # Dit is nog steeds nuttig, ook al gebruikt appleboy/scp-action dit niet direct, 
-      # het helpt bij de appleboy/ssh-action (Stap 7).
-      - name: Add Pi to known_hosts
+      # 5️⃣a FIX: Configureer de SSH Client voor KEX Compatibility
+      # Dit voorkomt de fout 'unsupported KEX method sntrup761x25519-sha512@openssh.com'
+      - name: Configure SSH Client for KEX Compatibility
         shell: powershell
         run: |
           $sshDir = "$env:USERPROFILE\.ssh"
           if (!(Test-Path $sshDir)) { New-Item -ItemType Directory -Path $sshDir | Out-Null }
           
+          # Forceer de SSH client om alleen oudere, compatibele algoritmes te gebruiken
+          @"
+          Host ${{ secrets.PI_HOST }}
+            KexAlgorithms curve25519-sha256@libssh.org,ecdh-sha2-nistp256,diffie-hellman-group14-sha256
+            HostKeyAlgorithms ssh-rsa,ssh-ed25519,ecdsa-sha2-nistp256
+          "@ | Out-File -FilePath "$sshDir\config" -Encoding UTF8
+          
+      # 5️⃣b Add Raspberry Pi to known_hosts (Gebruikt de nieuwe configuratie)
+      - name: Add Pi to known_hosts
+        shell: powershell
+        run: |
+          $sshDir = "$env:USERPROFILE\.ssh"
           $piHost = $env:PI_HOST
           $outputFile = Join-Path $sshDir "known_hosts"
           
           Write-Host "Adding $piHost to known_hosts..."
           
-          # Gebruik de betrouwbare ssh-keyscan om de hostkey op te halen
+          # ssh-keyscan gebruikt nu de bovenstaande configuratie en zou moeten slagen
           ssh-keyscan -t rsa $piHost | Out-File -FilePath $outputFile -Append
           
           Write-Host "Host key added successfully."
           
         env:
           PI_HOST: ${{ secrets.PI_HOST }}
-
+          
       # 6️⃣ FIX: Gebruik de appleboy/scp-action voor een betrouwbare, niet-interactieve upload
       - name: Upload binary to Raspberry Pi
-        uses: appleboy/scp-action@v0.1.7 # Deze actie handelt de wachtwoordauthenticatie correct af
+        uses: appleboy/scp-action@v0.1.7 
         with:
           host: ${{ secrets.PI_HOST }}
           username: ${{ secrets.PI_USER }}
+          # Deze actie kan het wachtwoord doorgeven zonder interactieve terminal
           password: ${{ secrets.PI_PASSWORD }} 
           source: "./main"
-          # Upload het gecompileerde 'main' bestand naar de home directory van de gebruiker
+          # Uploadt 'main' naar /home/<gebruiker>/main
           target: "/home/${{ secrets.PI_USER }}/" 
-
+          
       # 7️⃣ Restart program via SSH on Raspberry Pi
       - name: Restart program on Raspberry Pi
         uses: appleboy/ssh-action@v1.0.3
@@ -84,7 +96,7 @@ jobs:
           script: |
             cd /home/${{ secrets.PI_USER }}
             chmod +x main
-            # Stop de oude tmux sessie, '|| true' zorgt ervoor dat de workflow niet faalt als er geen sessie is
+            # Dood de oude tmux sessie; '|| true' zorgt ervoor dat we niet falen als hij nog niet bestaat
             tmux kill-session -t bramj || true
-            # Start het programma opnieuw in een nieuwe tmux sessie
+            # Start het programma in een nieuwe detached tmux sessie
             tmux new -d -s bramj "./main"
