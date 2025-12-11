@@ -51,6 +51,7 @@ jobs:
               echo 'Compilation successful, executable is main'
             "
 
+
       # 5️⃣ Add Raspberry Pi to known_hosts (Vereist dat PI_HOST is ingesteld!)
         - name: Add Pi to known_hosts
         shell: powershell
