@@ -68,7 +68,7 @@ jobs:
         env:
           PI_HOST: ${{ secrets.PI_HOST }}
 
-      # 6️⃣ Upload binary to Raspberry Pi using PowerShell scp
+      # 6️⃣ Upload binary to Raspberry Pi using PowerShell scp (fixed)
       - name: Upload binary to Raspberry Pi
         shell: powershell
         run: |
@@ -78,15 +78,13 @@ jobs:
           $localFile = "${{ github.workspace }}\main"
           $remoteFile = "/home/$piUser/main"
 
-          Write-Host "Uploading $localFile to $piUser@$piHost:$remoteFile ..."
+          # Correct variable interpolation for PowerShell
+          $remotePath = "$piUser@${piHost}:$remoteFile"
 
-          # Using scp with password authentication
-          # Requires Windows OpenSSH installed on the runner
-          $securePass = ConvertTo-SecureString $piPass -AsPlainText -Force
-          $credential = New-Object System.Management.Automation.PSCredential($piUser, $securePass)
+          Write-Host "Uploading $localFile to $remotePath ..."
 
-          # Use scp.exe directly
-          scp -o StrictHostKeyChecking=no $localFile $piUser@$piHost:$remoteFile
+          # Use Windows OpenSSH scp
+          scp -o StrictHostKeyChecking=no $localFile $remotePath
 
           Write-Host "Upload complete."
 
