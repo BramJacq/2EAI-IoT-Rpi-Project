@@ -6,7 +6,6 @@ on:
       - main
   pull_request:
 
-
 jobs:
   build-and-deploy:
     runs-on: self-hosted
@@ -18,69 +17,58 @@ jobs:
 
       # 2️⃣ Set up QEMU + Buildx (Essentieel voor cross-compiling)
       - name: Set up QEMU
-        # Maakt het mogelijk om ARM-containers op een x86-machine te draaien
         uses: docker/setup-qemu-action@v3
         
       - name: Set up Docker Buildx
-        # Maakt de --platform flag in 'docker build' mogelijk
         uses: docker/setup-buildx-action@v3
 
       # 3️⃣ Build Docker image (Belangrijk: specificeer platform voor RPi)
       - name: Build Docker image (ARM64)
-        run: docker build -t bramj_builder --platform=linux/arm64 . 
+        run: docker build -t bramj_builder --platform=linux/arm64 .
 
       # 4️⃣ Compile inside Docker
       - name: Compile inside Docker
         run: |
-          # BELANGRIJK: We gebruiken -v (volume) in plaats van --mount type=bind 
-          # Dit is een kortere syntax met hetzelfde effect.
-          # De hele workspace wordt gemount naar /work in de container.
           docker run --rm -v ${{ github.workspace }}:/work bramj_builder \
             bash -c "
               cd /work
               echo 'Start compiling...'
               
-              # Compileer pigpio source en bouw de statische bibliotheek
-              # Dit vereist de pigpio-headers en library die nu in de Dockerfile staan.
               gcc -c pigpio/*.c -I/usr/include/pigpio
               ar rcs libpigpio.a *.o
-
-              # Compileer main.c en link met de pigpio bibliotheek
               gcc main.c -L. -lpigpio -lpthread -o main
               
               echo 'Compilation successful, executable is main'
             "
 
-        # 5️⃣ Add Raspberry Pi to known_hosts (PowerShell, no errors)
-        - name: Add Pi to known_hosts
-          shell: powershell
-          run: |
-            # Ensure the .ssh directory exists
-            $sshDir = "$env:USERPROFILE\.ssh"
-            if (!(Test-Path $sshDir)) { New-Item -ItemType Directory -Path $sshDir | Out-Null }
-        
-            $piHost = $env:PI_HOST
-            $outputFile = Join-Path $sshDir "known_hosts"
-        
-            Write-Host "Adding $piHost to known_hosts..."
-        
-            # Run ssh-keyscan in a separate process to capture stdout only
-            # This ignores the native exit code (so workflow won't fail)
-            $process = Start-Process ssh-keyscan `
-                -ArgumentList "-t rsa $piHost" `
-                -NoNewWindow `
-                -RedirectStandardOutput $outputFile `
-                -RedirectStandardError ([System.IO.StreamWriter]::Null) `
-                -Wait `
-                -PassThru
-        
-            Write-Host "Host key added successfully."
-        
-          env:
-            PI_HOST: ${{ secrets.PI_HOST }}
+      # 5️⃣ Add Raspberry Pi to known_hosts (PowerShell, no errors)
+      - name: Add Pi to known_hosts
+        shell: powershell
+        run: |
+          # Ensure the .ssh directory exists
+          $sshDir = "$env:USERPROFILE\.ssh"
+          if (!(Test-Path $sshDir)) { New-Item -ItemType Directory -Path $sshDir | Out-Null }
+      
+          $piHost = $env:PI_HOST
+          $outputFile = Join-Path $sshDir "known_hosts"
+      
+          Write-Host "Adding $piHost to known_hosts..."
+      
+          # Run ssh-keyscan in a separate process to capture stdout only
+          $process = Start-Process ssh-keyscan `
+              -ArgumentList "-t rsa $piHost" `
+              -NoNewWindow `
+              -RedirectStandardOutput $outputFile `
+              -RedirectStandardError ([System.IO.StreamWriter]::Null) `
+              -Wait `
+              -PassThru
+      
+          Write-Host "Host key added successfully."
+      
+        env:
+          PI_HOST: ${{ secrets.PI_HOST }}
 
-
-      # 6️⃣ Upload binary to Raspberry Pi (Gebruik nieuwe secrets-namen)
+      # 6️⃣ Upload binary to Raspberry Pi (password authentication)
       - name: Upload to Raspberry Pi
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -90,7 +78,7 @@ jobs:
           source: "./main"
           target: "/home/${{ secrets.PI_USER }}/main"
 
-      # 7️⃣ Restart program via tmux (Gebruik nieuwe secrets-namen)
+      # 7️⃣ Restart program via tmux (password authentication)
       - name: Restart program on Raspberry Pi
         uses: appleboy/ssh-action@v1.0.3
         with:
