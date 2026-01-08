@@ -51,7 +51,7 @@ jobs:
           }
           Write-Host ".ssh directory ready at $sshDir"
 
-      # 6️⃣ Write SSH private key safely (FIXED)
+      # 6️⃣ Write SSH private key safely (FIXED FOR REAL)
       - name: Write SSH private key
         shell: powershell
         run: |
@@ -63,16 +63,22 @@ jobs:
             New-Item -ItemType Directory -Path $sshDir | Out-Null
           }
 
+          # If key exists, restore write permission
+          if (Test-Path $keyPath) {
+            icacls $keyPath /grant "$($env:USERNAME):(F)" | Out-Null
+          }
+
           # Write (overwrite) key
           Set-Content -Path $keyPath -Value $env:PI_PRIVATE_KEY -NoNewline
 
-          # Set strict permissions (after writing)
-          icacls $keyPath /inheritance:r
-          icacls $keyPath /grant:r "$($env:USERNAME):(R)"
+          # Lock permissions back down
+          icacls $keyPath /inheritance:r | Out-Null
+          icacls $keyPath /grant:r "$($env:USERNAME):(R)" | Out-Null
 
           Write-Host "Private key written to $keyPath"
         env:
           PI_PRIVATE_KEY: ${{ secrets.PI_PRIVATE_KEY }}
+
 
       # 7️⃣ Upload binary to Raspberry Pi
       - name: Upload binary to Raspberry Pi
