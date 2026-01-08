@@ -11,6 +11,7 @@ on:
 jobs:
   build-and-deploy:
     runs-on: self-hosted
+
     steps:
       # 1️⃣ Checkout repository
       - name: Checkout code
@@ -58,27 +59,22 @@ jobs:
           $sshDir = Join-Path $env:USERPROFILE ".ssh"
           $keyPath = Join-Path $sshDir "id_rsa_bramj"
 
-          # Ensure directory exists
           if (-Not (Test-Path $sshDir)) {
             New-Item -ItemType Directory -Path $sshDir | Out-Null
           }
 
-          # If key exists, restore write permission
           if (Test-Path $keyPath) {
             icacls $keyPath /grant "$($env:USERNAME):(F)" | Out-Null
           }
 
-          # Write (overwrite) key
-          Set-Content -Path $keyPath -Value $env:PI_PRIVATE_KEY -NoNewline
+          Set-Content -Path $keyPath -Value $env:PI_SSH_KEY -NoNewline
 
-          # Lock permissions back down
           icacls $keyPath /inheritance:r | Out-Null
           icacls $keyPath /grant:r "$($env:USERNAME):(R)" | Out-Null
 
           Write-Host "Private key written to $keyPath"
         env:
-          PI_PRIVATE_KEY: ${{ secrets.PI_SSH_KEY }}
-
+          PI_SSH_KEY: ${{ secrets.PI_SSH_KEY }}
 
       # 7️⃣ Upload binary to Raspberry Pi
       - name: Upload binary to Raspberry Pi
@@ -89,8 +85,8 @@ jobs:
           $piHost = $env:PI_HOST
           $piUser = $env:PI_USER
           $localFile = Join-Path $env:GITHUB_WORKSPACE "main"
-          $remoteFile = "/home/$piUser/main"
-          $remotePath = "${piUser}@${piHost}:$remoteFile"
+          $remotePath = "${piUser}@${piHost}:/home/${piUser}/main"
+
           Write-Host "Uploading $localFile to $remotePath ..."
           scp -i $keyPath -o StrictHostKeyChecking=no $localFile $remotePath
           Write-Host "Upload complete."
@@ -98,17 +94,17 @@ jobs:
           PI_HOST: ${{ secrets.PI_HOST }}
           PI_USER: ${{ secrets.PI_USER }}
 
-    # 8️⃣ Restart program on Raspberry Pi (FIXED)
-    - name: Restart program on Raspberry Pi
-      shell: powershell
-      run: |
-        $sshDir = Join-Path $env:USERPROFILE ".ssh"
-        $keyPath = Join-Path $sshDir "id_rsa_bramj"
-        $piHost = $env:PI_HOST
-        $piUser = $env:PI_USER
-    
-        ssh -i $keyPath -o StrictHostKeyChecking=no "$piUser@$piHost" `
-          "cd /home/$piUser && chmod +x main && tmux kill-session -t bramj || true && tmux new -d -s bramj ./main"
-      env:
-        PI_HOST: ${{ secrets.PI_HOST }}
-        PI_USER: ${{ secrets.PI_USER }}
+      # 8️⃣ Restart program on Raspberry Pi (CRLF FIXED)
+      - name: Restart program on Raspberry Pi
+        shell: powershell
+        run: |
+          $sshDir = Join-Path $env:USERPROFILE ".ssh"
+          $keyPath = Join-Path $sshDir "id_rsa_bramj"
+          $piHost = $env:PI_HOST
+          $piUser = $env:PI_USER
+
+          ssh -i $keyPath -o StrictHostKeyChecking=no "$piUser@$piHost" `
+            "cd /home/$piUser && chmod +x main && tmux kill-session -t bramj || true && tmux new -d -s bramj ./main"
+        env:
+          PI_HOST: ${{ secrets.PI_HOST }}
+          PI_USER: ${{ secrets.PI_USER }}
