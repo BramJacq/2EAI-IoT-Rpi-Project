@@ -11,7 +11,6 @@ on:
 jobs:
   build-and-deploy:
     runs-on: self-hosted
-
     steps:
       # 1️⃣ Checkout repository
       - name: Checkout code
@@ -52,24 +51,26 @@ jobs:
           }
           Write-Host ".ssh directory ready at $sshDir"
 
-      # 6️⃣ Write SSH private key safely
+      # 6️⃣ Write SSH private key safely (FIXED)
       - name: Write SSH private key
         shell: powershell
         run: |
           $sshDir = Join-Path $env:USERPROFILE ".ssh"
           $keyPath = Join-Path $sshDir "id_rsa_bramj"
 
-          # Remove old key if it exists
-          if (Test-Path $keyPath) { Remove-Item $keyPath -Force }
+          # Ensure directory exists
+          if (-Not (Test-Path $sshDir)) {
+            New-Item -ItemType Directory -Path $sshDir | Out-Null
+          }
 
-          # Write secret to file
-          [System.IO.File]::WriteAllText($keyPath, $env:PI_PRIVATE_KEY)
+          # Write (overwrite) key
+          Set-Content -Path $keyPath -Value $env:PI_PRIVATE_KEY -NoNewline
 
-          # Set strict permissions
+          # Set strict permissions (after writing)
           icacls $keyPath /inheritance:r
           icacls $keyPath /grant:r "$($env:USERNAME):(R)"
-          Write-Host "Private key written to $keyPath"
 
+          Write-Host "Private key written to $keyPath"
         env:
           PI_PRIVATE_KEY: ${{ secrets.PI_PRIVATE_KEY }}
 
@@ -84,7 +85,6 @@ jobs:
           $localFile = Join-Path $env:GITHUB_WORKSPACE "main"
           $remoteFile = "/home/$piUser/main"
           $remotePath = "${piUser}@${piHost}:$remoteFile"
-
           Write-Host "Uploading $localFile to $remotePath ..."
           scp -i $keyPath -o StrictHostKeyChecking=no $localFile $remotePath
           Write-Host "Upload complete."
@@ -100,14 +100,12 @@ jobs:
           $keyPath = Join-Path $sshDir "id_rsa_bramj"
           $piHost = $env:PI_HOST
           $piUser = $env:PI_USER
-
           $script = @"
           cd /home/$piUser
           chmod +x main
           tmux kill-session -t bramj || true
           tmux new -d -s bramj ./main
           "@
-
           ssh -i $keyPath -o StrictHostKeyChecking=no $piUser@$piHost $script
         env:
           PI_HOST: ${{ secrets.PI_HOST }}
