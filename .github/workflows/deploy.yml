@@ -28,7 +28,7 @@ jobs:
       - name: Build Docker image (ARM64)
         run: docker build -t bramj_builder --platform=linux/arm64 .
 
-      # 4️⃣ Compile inside Docker (pigpio + bcm2835)
+      # 4️⃣ Compile inside Docker
       - name: Compile inside Docker
         run: |
           docker run --rm -v ${{ github.workspace }}:/work bramj_builder bash -c "
@@ -52,16 +52,24 @@ jobs:
           }
           Write-Host ".ssh directory ready at $sshDir"
 
-      # 6️⃣ Write SSH private key from secret
+      # 6️⃣ Write SSH private key safely
       - name: Write SSH private key
         shell: powershell
         run: |
           $sshDir = Join-Path $env:USERPROFILE ".ssh"
           $keyPath = Join-Path $sshDir "id_rsa_bramj"
-          $env:PI_PRIVATE_KEY | Out-File -FilePath $keyPath -Encoding ascii
+
+          # Remove old key if it exists
+          if (Test-Path $keyPath) { Remove-Item $keyPath -Force }
+
+          # Write secret to file
+          [System.IO.File]::WriteAllText($keyPath, $env:PI_PRIVATE_KEY)
+
+          # Set strict permissions
           icacls $keyPath /inheritance:r
           icacls $keyPath /grant:r "$($env:USERNAME):(R)"
           Write-Host "Private key written to $keyPath"
+
         env:
           PI_PRIVATE_KEY: ${{ secrets.PI_PRIVATE_KEY }}
 
