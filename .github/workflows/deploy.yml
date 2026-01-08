@@ -77,7 +77,7 @@ jobs:
 
           Write-Host "Private key written to $keyPath"
         env:
-          PI_PRIVATE_KEY: ${{ secrets.PI_PRIVATE_KEY }}
+          PI_PRIVATE_KEY: ${{ secrets.PI_SSH_KEY }}
 
 
       # 7️⃣ Upload binary to Raspberry Pi
