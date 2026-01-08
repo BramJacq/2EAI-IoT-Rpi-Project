@@ -192,8 +192,26 @@ tmux laat toe dat een programma blijft draaien, zelfs als je de SSH-sessie sluit
 
 ---
 
+### Stap 4 – SSH configureren
+**SSH sleutel aanmaken**
+Op je lokale computer (niet Pi):
+```bash
+ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa_bramj
+```
 
-### Stap 4 – GitHub Secrets instellen
+Dit maakt:
+* Private key – ~/.ssh/id_rsa_bramj (blijft lokaal)
+* Public key – ~/.ssh/id_rsa_bramj.pub (plaats op Pi)
+
+**Public key kopiëren naar Pi**
+```bash
+ssh-copy-id -i ~/.ssh/id_rsa_bramj.pub pi@<pi-ip>
+```
+Nu kun je veilig inloggen zonder wachtwoord.
+
+---
+
+### Stap 5 – GitHub Secrets instellen
 
 In de GitHub repository:
 
@@ -207,7 +225,7 @@ Deze worden gebruikt door GitHub Actions om automatisch verbinding te maken.
 
 ---
 
-### Stap 5 – Docker build via GitHub Actions
+### Stap 6 – Docker build via GitHub Actions
 
 Docker zorgt dat je code identiek wordt gebouwd voor ARM64 (Raspberry Pi) vanaf een x86 computer.
 
@@ -219,7 +237,7 @@ In je .yml staat al de actie om dit automatisch te doen bij elke push.
 
 ---
 
-### Stap 6 – Compilatie in Docker
+### Stap 7 – Compilatie in Docker
 
 **Docker container starten**
 Je code wordt gecompileerd binnen de container, zodat je alle afhankelijkheden hebt.
@@ -240,7 +258,7 @@ Na dit commando heb je een main executable in je folder.
 
 ---
 
-### Stap 7 – SCP: binary kopiëren naar Raspberry Pi
+### Stap 8 – SCP: binary kopiëren naar Raspberry Pi
 
 Na compilatie moet de binary naar de Pi:
 ```bash
@@ -251,7 +269,7 @@ Dit kopieert het bestand main naar de home-directory van de Pi.
 
 ---
 
-### Stap 8 – Programma starten via SSH
+### Stap 9 – Programma starten via SSH
 
 Op de Pi:
 ```bash
@@ -269,7 +287,7 @@ Nu draait het programma continu, zelfs als je de SSH-sessie sluit.
 
 ---
 
-### Stap 9 - Hardwaare controleren
+### Stap 10 - Hardwaare controleren
 
 1. LED op GPIO 26 moet branden of knipperen
 2. Drukknop op GPIO 16 wisselt modi
